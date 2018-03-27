@@ -63,7 +63,7 @@ for arg in $*; do
                 showUsage
                 exit $STATE_UNKNOWN
             fi
-            if [ "`echo $2 | egrep ^[[:digit:]]+$`" = "" ]; then
+            if [ "`echo $2 | egrep ^[[:digit:]]+$`" == "" ]; then
                 echo "UNKNOWN: invalid value '$2' passed to -w. integer needed"
                 showUsage
                 exit $STATE_UNKNOWN
@@ -112,9 +112,13 @@ if [ -z "$1" ]; then
 fi
 key="$1"
 
+GPGOPTS="--no-tty"
+
+GPG="gpg $GPGOPTS"
+
 # GPG is too stupid to error out when asked to refresh a key that's not in the
 # local keyring so we need to perform another call to verify this first.
-output=$( gpg $homedir --list-key -- "$key" 2>&1 >/dev/null )
+output=$( $GPG $homedir --list-key -- "$key" 2>&1 >/dev/null )
 if [ $? -ne 0 ]; then
     echo "UNKNOWN: $output"
     exit $STATE_UNKNOWN
@@ -122,19 +126,19 @@ fi
 
 # Refresh key if not disabled
 if [ $refresh -eq 1 ]; then
-    output=$( gpg $homedir --refresh -- "$key" 2>&1 >/dev/null )
+    output=$( $GPG $homedir --refresh -- "$key" 2>&1 >/dev/null )
     if [ $? -ne 0 ]; then
         echo "UNKNOWN: $output"
         exit $STATE_UNKNOWN
     fi
 fi
 
-if [ "$(gpg $homedir --check-sig -- "$key" 2>/dev/null | grep "^rev!")" != "" ]; then
+if [ "$($GPG $homedir --check-sig -- "$key" 2>/dev/null | grep "^rev!")" != "" ]; then
     echo "CRITICAL: key '$key' has been revoked!"
     exit $STATE_CRITICAL
 fi
 
-for expiry in $(gpg $homedir --with-colons --fixed-list-mode --list-key -- "$key" 2>/dev/null | awk -F: '/^pub:/{ print $7 }');
+for expiry in $($GPG $homedir --with-colons --fixed-list-mode --list-key -- "$key" 2>/dev/null | awk -F: '/^pub:/{ print $7 }');
 do
     debug "expiry value: $expiry"
 
